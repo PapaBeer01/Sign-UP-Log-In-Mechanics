@@ -1,5 +1,6 @@
+import psycopg2
+from psycopg2 import Error
 import sys
-import sqlite3
 import re
 from cryptography.fernet import Fernet
 from decouple import config
@@ -9,42 +10,32 @@ passwords during SignUp & Login"""
 # key = Fernet.generate_key()
 key = config('FERNET_KEY')
 key = key[1:]
-print(key)
 fernet = Fernet(key)
-
-"""Creating that Database that would accept User's info.
-Such information would be used to create a users profile 
-as well as log in details.
-"""
-
-def account_DB():
-    conn = sqlite3.connect("accounts.db")
-    c = conn.cursor()
-    c.execute("CREATE TABLE SignUp (Matric_No INTEGER PRIMARY KEY,Names TEXT, Level TEXT, Email TEXT, "
-              "Password TEXT)")
-    conn.commit()
-    conn.close()
-    print("DataBase Created")
 
 """This function enables user defined data to be passed into.
 the SIGNUP_TABLE on the database
 """
 def add_into_DB(MatricNo, Names, Level, Email, Password):
     try:
-        sqlite3.connect("accounts.db")
-        # if not sqlite3.OperationalError:
-        #     pass
-        # else:
-        #     raise Exception
-    except sqlite3.OperationalError as e:
-        print(e)
-        account_DB()
-    conn = sqlite3.connect("accounts.db")
+        psycopg2.connect(user="postgres",
+                         password="k0r0.day",
+                         host="localhost",
+                         port="5432",
+                         database="accounts")
+    except (Exception, Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+    conn = psycopg2.connect(user="postgres",
+                         password="k0r0.day",
+                         host="localhost",
+                         port="5432",
+                         database="accounts")
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO SignUp VALUES (?,?,?,?,?)", (MatricNo, Names, Level, Email, Password))
+        insert = "INSERT INTO SignUp(MatricNo, Names, Level, Email, Password) VALUES (%s,%s,%s,%s,%s)"
+        values = (MatricNo, Names, Level, Email, Password)
+        c.execute(insert,values)
         print("Data Inserted")
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         print("This user already exists. Try logging in instead")
     conn.commit()
     conn.close()
@@ -111,6 +102,7 @@ def Signup():
             if len(i) < 8:
                 raise ValueError("Password must be 8 characters and above")
             Password = encrypt(i)
+            Password = str(Password)
             break
         except ValueError as e:
             print(e)
@@ -122,6 +114,7 @@ def Login():
     A non existent account would be refered to sign up, while an existent
     account would proceed to password"""
     # Valid Email Check
+    global Email
     try:
         Email = input("Email: ")
         regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
@@ -132,10 +125,15 @@ def Login():
 
     # DBO Email Check
     try:
-        conn = sqlite3.connect("accounts.db")
+        conn = psycopg2.connect(user="postgres",
+                         password="k0r0.day",
+                         host="localhost",
+                         port="5432",
+                         database="accounts")
         c = conn.cursor()
-        c.execute("SELECT Email FROM SignUp WHERE Email == (?)", [Email])
-        mail = c.fetchall()
+        retrieve = "SELECT Email FROM SignUp WHERE Email = '{0}'".format(Email)
+        c.execute(retrieve)
+        mail = c.fetchone()
         conn.close()
         if len(mail) > 0:
             pass
@@ -147,12 +145,19 @@ def Login():
     # Password
     try:
         Password = input("Pasword: ")
-        conn = sqlite3.connect("accounts.db")
+        conn = psycopg2.connect(user="postgres",
+                                password="k0r0.day",
+                                host="localhost",
+                                port="5432",
+                                database="accounts")
         c = conn.cursor()
-        c.execute("SELECT Password FROM SignUp WHERE Email == (?)", [Email])
+        retrieve = "SELECT Password FROM SignUp WHERE Email = '{0}'".format(Email)
+        c.execute(retrieve)
         iterable = c.fetchall()
-        pwd = iterable[0][0]
-        pwd = decrypt(pwd)
+        p1 = iterable[0][0]
+        p1 = bytes(p1[2:-1], 'utf-8')
+        pwd = decrypt(p1)
+        print(pwd)
         if Password == pwd:
             print("Login Successful!")
         else:
