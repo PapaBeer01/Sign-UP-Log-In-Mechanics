@@ -17,28 +17,26 @@ the SIGNUP_TABLE on the database
 """
 def add_into_DB(MatricNo, Names, Level, Email, Password):
     try:
-        psycopg2.connect(user="postgres",
-                         password="k0r0.day",
-                         host="localhost",
-                         port="5432",
-                         database="accounts")
+        conn = psycopg2.connect(user="postgres",
+                                 password="k0r0.day",
+                                 host="localhost",
+                                 port="5432",
+                                 database="accounts")
     except (Exception, Error) as error:
         print("Error while connecting to PostgreSQL", error)
-    conn = psycopg2.connect(user="postgres",
-                         password="k0r0.day",
-                         host="localhost",
-                         port="5432",
-                         database="accounts")
+        return
+
     c = conn.cursor()
     try:
         insert = "INSERT INTO SignUp(MatricNo, Names, Level, Email, Password) VALUES (%s,%s,%s,%s,%s)"
         values = (MatricNo, Names, Level, Email, Password)
-        c.execute(insert,values)
+        c.execute(insert, values)
         print("Data Inserted")
     except psycopg2.IntegrityError:
         print("This user already exists. Try logging in instead")
     conn.commit()
     conn.close()
+
 
 """ Encryption & Decryption Functions for Passwords """
 def encrypt(Password):
